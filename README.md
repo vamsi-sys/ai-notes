@@ -2,7 +2,7 @@
 
 A small full-stack prototype: a note-taking app built with **Next.js + TypeScript + Tailwind CSS**, using **Supabase (Postgres)** for data persistence. Optional AI summarization is available via the OpenAI API.
 
-Live demo: *(add your Vercel URL after deployment)*
+Live demo: https://vercel.com/vamsis-vercels-projects/ai-notes
 
 ## Tech stack
 - Frontend: Next.js (Pages Router), React, TypeScript, Tailwind CSS  
