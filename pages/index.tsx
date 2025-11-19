@@ -1,78 +1,97 @@
-import Image from "next/image";
-import { Geist, Geist_Mono } from "next/font/google";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+type Note = {
+  id: string;
+  title: string;
+  content: string;
+  summary?: string | null;
+  created_at: string;
+};
 
 export default function Home() {
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [summarizingId, setSummarizingId] = useState<string | null>(null);
+
+  const fetchNotes = async () => {
+    const res = await fetch("/api/notes");
+    const data = await res.json();
+    setNotes(data);
+  };
+
+  useEffect(() => {
+    fetchNotes();
+  }, []);
+
+  const createNote = async (e: any) => {
+    e.preventDefault();
+    setLoading(true);
+    const res = await fetch("/api/notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, content })
+    });
+    const newNote = await res.json();
+    setNotes((prev) => [newNote, ...prev]);
+    setLoading(false);
+    setTitle("");
+    setContent("");
+  };
+
+  const summarize = async (note: Note) => {
+    setSummarizingId(note.id);
+    const res = await fetch("/api/summarize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: note.content })
+    });
+    const data = await res.json();
+
+    await supabase.from("notes").update({ summary: data.summary }).eq("id", note.id);
+    fetchNotes();
+    setSummarizingId(null);
+  };
+
   return (
-    <div
-      className={`${geistSans.className} ${geistMono.className} flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black`}
-    >
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="p-6 max-w-2xl mx-auto bg-white text-black">
+      <h1 className="text-3xl font-bold mb-4">Vamsi's AI Notes</h1>
+
+      <form onSubmit={createNote} className="p-4 bg-white rounded shadow mb-6">
+        <input
+          className="border p-2 w-full mb-3"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Note title"
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the index.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        <textarea
+          className="border p-2 w-full mb-3"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="Write your note here..."
+        />
+        <button className="bg-blue-600 text-white px-4 py-2 rounded">
+          {loading ? "Saving..." : "Save Note"}
+        </button>
+      </form>
+
+      {notes.map((note) => (
+        <div key={note.id} className="p-4 bg-white rounded shadow mb-4">
+          <h2 className="font-semibold text-xl">{note.title}</h2>
+          <p className="mt-2 text-gray-700">{note.content}</p>
+
+          {note.summary && <p className="mt-2 italic text-gray-500">AI Summary: {note.summary}</p>}
+
+          <button
+            onClick={() => summarize(note)}
+            className="mt-3 border px-3 py-1 rounded"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs/pages/getting-started?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            {summarizingId === note.id ? "Summarizing..." : "Generate Summary"}
+          </button>
         </div>
-      </main>
+      ))}
     </div>
   );
 }
